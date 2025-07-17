@@ -129,6 +129,55 @@ func TestApplyEditsToContent(t *testing.T) {
 			},
 			expected: "package main\n\nimport \"os\"\n\nfunc main() {}",
 		},
+		{
+			name:    "multiple edits on same line - config to pkg_config",
+			content: "environment == config.EnvironmentDev || environment == config.EnvironmentProd,",
+			edits: []protocol.TextEdit{
+				{
+					Range: protocol.Range{
+						Start: protocol.Position{Line: 0, Character: 15},
+						End:   protocol.Position{Line: 0, Character: 21},
+					},
+					NewText: "pkg_config",
+				},
+				{
+					Range: protocol.Range{
+						Start: protocol.Position{Line: 0, Character: 55},
+						End:   protocol.Position{Line: 0, Character: 61},
+					},
+					NewText: "pkg_config",
+				},
+			},
+			expected: "environment == pkg_config.EnvironmentDev || environment == pkg_config.EnvironmentProd,",
+		},
+		{
+			name:    "multiple edits - import statements",
+			content: "import \"fmt\"; import \"os\"; import \"log\"",
+			edits: []protocol.TextEdit{
+				{
+					Range: protocol.Range{
+						Start: protocol.Position{Line: 0, Character: 8},
+						End:   protocol.Position{Line: 0, Character: 11},
+					},
+					NewText: "myfmt",
+				},
+				{
+					Range: protocol.Range{
+						Start: protocol.Position{Line: 0, Character: 22},
+						End:   protocol.Position{Line: 0, Character: 24},
+					},
+					NewText: "myos",
+				},
+				{
+					Range: protocol.Range{
+						Start: protocol.Position{Line: 0, Character: 35},
+						End:   protocol.Position{Line: 0, Character: 38},
+					},
+					NewText: "mylog",
+				},
+			},
+			expected: "import \"myfmt\"; import \"myos\"; import \"mylog\"",
+		},
 	}
 
 	for _, tt := range tests {

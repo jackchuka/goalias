@@ -3,6 +3,7 @@ package lsp
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"go.lsp.dev/protocol"
@@ -98,9 +99,28 @@ func applyEditsToContent(content string, edits []protocol.TextEdit) (string, err
 	// Split content into lines for easier manipulation
 	lines := strings.Split(content, "\n")
 
-	// Sort edits by position (start from end to avoid offset issues)
-	// For simplicity, we'll apply them in order and assume they don't overlap
-	for _, edit := range edits {
+	// Sort edits by position (reverse order: end to start) to avoid offset issues
+	// when multiple edits occur on the same line
+	sortedEdits := make([]protocol.TextEdit, len(edits))
+	copy(sortedEdits, edits)
+
+	// Sort in reverse order: later positions first, then earlier positions
+	// This ensures that character positions remain valid as we apply edits
+	sort.Slice(sortedEdits, func(i, j int) bool {
+		edit1 := sortedEdits[i]
+		edit2 := sortedEdits[j]
+
+		// Sort by line first (later lines first)
+		if edit1.Range.Start.Line != edit2.Range.Start.Line {
+			return edit1.Range.Start.Line > edit2.Range.Start.Line
+		}
+
+		// For same line, sort by character position (later positions first)
+		return edit1.Range.Start.Character > edit2.Range.Start.Character
+	})
+
+	// Apply edits in reverse position order
+	for _, edit := range sortedEdits {
 		lines = applyEditToLines(lines, edit)
 	}
 
