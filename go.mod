@@ -3,7 +3,7 @@ module github.com/jackchuka/goalias
 go 1.22
 
 require (
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	go.lsp.dev/protocol v0.12.0
 	go.lsp.dev/uri v0.3.0
 )
