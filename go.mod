@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	github.com/spf13/cobra v1.10.2
 	go.lsp.dev/protocol v0.12.0
-	go.lsp.dev/uri v0.3.0
+	go.lsp.dev/uri v1.0.0
 )
 
 require (
