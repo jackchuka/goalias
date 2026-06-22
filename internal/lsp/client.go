@@ -19,6 +19,10 @@ import (
 	"go.lsp.dev/uri"
 )
 
+// ptr returns a pointer to v. Several protocol v1.0.0 capability fields are
+// optional pointers (*bool, *int32, etc.).
+func ptr[T any](v T) *T { return &v }
+
 // Client represents an LSP client connected to gopls
 type Client struct {
 	cmd    *exec.Cmd
@@ -114,25 +118,26 @@ func (c *Client) Initialize() error {
 		return nil
 	}
 
-	params := &protocol.InitializeParams{
-		ProcessID: int32(os.Getpid()),
-		Capabilities: protocol.ClientCapabilities{
-			Workspace: &protocol.WorkspaceClientCapabilities{
-				WorkspaceEdit: &protocol.WorkspaceClientCapabilitiesWorkspaceEdit{
-					DocumentChanges: true,
-				},
-			},
-			TextDocument: &protocol.TextDocumentClientCapabilities{
-				Rename: &protocol.RenameClientCapabilities{
-					DynamicRegistration: false,
-					PrepareSupport:      false,
-				},
+	// protocol v1.0.0 promotes ProcessID/Capabilities/RootURI from embedded
+	// (unexported) structs, so they must be assigned rather than set in the
+	// composite literal. WorkspaceFolders is now a Nullable with no exported
+	// constructor; rootUri conveys the same workspace root to gopls.
+	params := &protocol.InitializeParams{}
+	params.ProcessID = ptr(int32(os.Getpid()))
+	// RootURI is deprecated in favour of WorkspaceFolders, but protocol v1.0.0
+	// models WorkspaceFolders as a Nullable with no exported constructor, so it
+	// cannot be populated programmatically. gopls honors rootUri identically.
+	params.RootURI = &c.rootURI //nolint:staticcheck // see comment above
+	params.Capabilities = protocol.ClientCapabilities{
+		Workspace: &protocol.WorkspaceClientCapabilities{
+			WorkspaceEdit: &protocol.WorkspaceEditClientCapabilities{
+				DocumentChanges: ptr(true),
 			},
 		},
-		WorkspaceFolders: []protocol.WorkspaceFolder{
-			{
-				URI:  string(c.rootURI),
-				Name: filepath.Base(string(c.rootURI)),
+		TextDocument: &protocol.TextDocumentClientCapabilities{
+			Rename: &protocol.RenameClientCapabilities{
+				DynamicRegistration: ptr(false),
+				PrepareSupport:      ptr(false),
 			},
 		},
 	}

@@ -24,17 +24,43 @@ func ApplyWorkspaceEdit(edit *protocol.WorkspaceEdit, preview bool) error {
 		}
 	}
 
-	// Handle document changes (preferred method)
-	if edit.DocumentChanges != nil {
-		for _, docChange := range edit.DocumentChanges {
-			// docChange is already a protocol.TextDocumentEdit, no need to type assert
-			if err := applyTextEdits(string(docChange.TextDocument.URI), docChange.Edits, preview); err != nil {
-				return fmt.Errorf("failed to apply document changes to %s: %w", docChange.TextDocument.URI, err)
-			}
+	// Handle document changes (preferred method). In protocol v1.0.0
+	// DocumentChanges is a slice of the DocumentChange union, so each entry
+	// must be type-asserted to *TextDocumentEdit before its edits are applied.
+	for _, docChange := range edit.DocumentChanges {
+		tde, ok := docChange.(*protocol.TextDocumentEdit)
+		if !ok {
+			// Skip create/rename/delete file operations; rename only emits text edits.
+			continue
+		}
+		edits, err := textEditsFromElements(tde.Edits)
+		if err != nil {
+			return fmt.Errorf("failed to apply document changes to %s: %w", tde.TextDocument.URI, err)
+		}
+		if err := applyTextEdits(string(tde.TextDocument.URI), edits, preview); err != nil {
+			return fmt.Errorf("failed to apply document changes to %s: %w", tde.TextDocument.URI, err)
 		}
 	}
 
 	return nil
+}
+
+// textEditsFromElements flattens the protocol v1.0.0 TextDocumentEditElement
+// union into plain TextEdits. gopls rename results are plain TextEdits;
+// AnnotatedTextEdit embeds one. SnippetTextEdit is not requested by goalias.
+func textEditsFromElements(elems []protocol.TextDocumentEditElement) ([]protocol.TextEdit, error) {
+	edits := make([]protocol.TextEdit, 0, len(elems))
+	for _, e := range elems {
+		switch v := e.(type) {
+		case *protocol.TextEdit:
+			edits = append(edits, *v)
+		case *protocol.AnnotatedTextEdit:
+			edits = append(edits, v.TextEdit)
+		default:
+			return nil, fmt.Errorf("unsupported text edit element type %T", e)
+		}
+	}
+	return edits, nil
 }
 
 // applyTextEdits applies text edits to a file
