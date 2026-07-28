@@ -1,8 +1,8 @@
 # goalias
 
-[![Test](https://github.com/jackchuka/goalias/workflows/Test/badge.svg)](https://github.com/jackchuka/goalias/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/jackchuka/goalias)](https://goreportcard.com/report/github.com/jackchuka/goalias)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Test](https://github.com/jackchuka/goalias/actions/workflows/test.yml/badge.svg)](https://github.com/jackchuka/goalias/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/jackchuka/goalias?sort=semver)](https://github.com/jackchuka/goalias/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A fast and reliable Go CLI tool for managing import aliases consistently across your entire codebase using the Language Server Protocol (LSP).
 
