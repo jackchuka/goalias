@@ -32,6 +32,12 @@ In a growing Go codebase the same package ends up imported as `pr` in one file, 
 
 ## Installation
 
+### Homebrew
+
+```bash
+brew install jackchuka/tap/goalias
+```
+
 ### Go
 
 ```bash
