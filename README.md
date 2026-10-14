@@ -1,223 +1,146 @@
+<div align="center">
+
 # goalias
+
+**One import path, one alias, across the whole codebase.**
+
+Find every alias a Go package is imported under,<br>
+then rename them all to one name with `gopls`, usages included.
 
 [![Test](https://github.com/jackchuka/goalias/actions/workflows/test.yml/badge.svg)](https://github.com/jackchuka/goalias/actions/workflows/test.yml)
 [![Release](https://img.shields.io/github/v/release/jackchuka/goalias?sort=semver)](https://github.com/jackchuka/goalias/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A fast and reliable Go CLI tool for managing import aliases consistently across your entire codebase using the Language Server Protocol (LSP).
+<img src="assets/demo.gif" alt="goalias listing three different aliases for one package, then setting them all to a single alias" width="800">
+
+[Installation](#installation) · [Quick Start](#quick-start) · [Commands](#commands) · [How It Works](#how-it-works)
+
+</div>
+
+---
+
+In a growing Go codebase the same package ends up imported as `pr` in one file, `p` in another and `pricingsvc` in a third. Renaming them by hand means editing the import line and every reference in each file. **goalias** lists every alias in use for an import path, then rewrites them to the one you choose through `gopls` rename, so each reference in the file changes with its import.
 
 ## Features
 
-- 🚀 **Fast**: Uses persistent LSP connections for processing multiple files
-- 🔍 **Accurate**: Leverages `gopls` for precise Go code analysis and refactoring
-- 📦 **Comprehensive**: Scans entire modules or specific package patterns
-- 🛡️ **Safe**: Skips generated files and provides clear feedback
-- 🎯 **Consistent**: Ensures uniform import aliases across your codebase
-- 📊 **Informative**: Shows detailed location information for all import usages
+- **Audit** — `goalias list` shows every file that imports a package and the alias it uses
+- **Rewrite** — `goalias set` renames the alias and all its usages, file by file, via `gopls`
+- **Preview** — `--preview` prints the changes as a diff without writing anything
+- **Scoped** — limit the scan to Go package patterns such as `./cmd/...`; defaults to `./...`
+- **Safe defaults** — skips generated files (`Code generated ... DO NOT EDIT`) and files already using the target alias
+- **Fast** — one persistent `gopls` session handles every file in a run
 
 ## Installation
 
-```bash
-# Install goalias
-go install github.com/jackchuka/goalias/cmd/goalias@latest
+### Go
 
-# Install gopls (required dependency)
+```bash
+go install github.com/jackchuka/goalias/cmd/goalias@latest
+```
+
+### Binary
+
+Download a prebuilt binary for Linux, macOS or Windows from the [releases page](https://github.com/jackchuka/goalias/releases).
+
+### Requirements
+
+`goalias set` drives `gopls`, so it must be on your `$PATH`:
+
+```bash
 go install golang.org/x/tools/gopls@latest
 ```
 
-Both `goalias` and `gopls` must be available in your `$PATH`.
+`goalias list` only needs the `go` command. Building goalias from source requires Go 1.26 or later.
 
 ## Quick Start
 
-```bash
-# List all current aliases for a package
-goalias list -p github.com/example/mypackage
+Run these from the root of the Go module you want to clean up.
 
-# Set a consistent alias across your entire module
-goalias set -p github.com/example/mypackage -a mypkg
+1. **See** which aliases are in use for a package:
 
-# Set alias for specific package patterns
-goalias set -p github.com/example/mypackage -a mypkg ./cmd/... ./internal/...
-```
+   ```bash
+   goalias list -p example.com/shop/pricing
+   ```
 
-## Usage
+   ```
+   LOCATION                       ALIAS
+   --------                       -----
+   /src/shop/api/checkout.go:4    pr
+   /src/shop/cmd/shop/main.go:6   p
+   /src/shop/worker/invoice.go:6  pricingsvc
+   ```
 
-### Set Import Alias
+   Imports without an alias are reported under the package's default name (the last path element).
 
-Update import aliases consistently across your codebase:
+2. **Preview** the rename:
 
-```bash
-# Set alias for entire module
-goalias set -p github.com/example/mypackage -a mypkg
+   ```bash
+   goalias set -p example.com/shop/pricing -a pricing --preview
+   ```
 
-# Set alias for specific package patterns
-goalias set -p github.com/example/mypackage -a mypkg ./cmd/...
+3. **Apply** it:
 
-# Multiple patterns
-goalias set -p github.com/example/mypackage -a mypkg ./cmd/... ./internal/...
-```
+   ```bash
+   goalias set -p example.com/shop/pricing -a pricing
+   ```
 
-### List Import Aliases
-
-Display all current aliases and their locations:
-
-```bash
-# List aliases for entire module
-goalias list -p github.com/example/mypackage
-
-# List aliases for specific package patterns
-goalias list -p github.com/example/mypackage ./cmd/...
-```
-
-**Example output:**
-
-```
-LOCATION                  ALIAS
---------                  -----
-handler/foo.go:4         myutils
-handler/bar.go:6         myutils
-cmd/server/main.go:8     mypackage
-```
+   When the target alias matches the package name, `gopls` drops the explicit alias and leaves a plain import.
 
 ## Commands
 
-### `goalias set`
+| Command                                          | Description                                              |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| `goalias list -p <path> [patterns...]`           | List every file importing `<path>` and the alias it uses |
+| `goalias set -p <path> -a <alias> [patterns...]` | Rename the alias (and its usages) to `<alias>`           |
+| `goalias version`                                | Print version, commit and build date                     |
 
-Sets or updates import aliases across specified packages.
+`patterns` are Go package patterns passed to `go list`; they default to `./...`.
 
-```bash
-goalias set --package <importPath> --alias <name> [patterns...]
-```
+### Flags
 
-**Required Flags:**
+| Flag            | Commands      | Description                                      |
+| --------------- | ------------- | ------------------------------------------------ |
+| `-p, --package` | `list`, `set` | Full import path to inspect or update (required) |
+| `-a, --alias`   | `set`         | Desired alias identifier (required)              |
+| `-n, --preview` | `set`         | Print a diff instead of writing files            |
 
-- `--package`, `-p`: Full import path to manage
-- `--alias`, `-a`: Desired alias identifier
-
-**Optional Arguments:**
-
-- `patterns`: Go package patterns (defaults to `./...`)
-
-**Examples:**
-
-```bash
-# Set alias for entire module
-goalias set -p github.com/gin-gonic/gin -a gin
-
-# Set alias for specific directories
-goalias set -p github.com/stretchr/testify/assert -a tassert ./tests/...
-
-# Multiple patterns
-goalias set -p github.com/pkg/errors -a pkg_errros ./cmd/... ./internal/...
-```
-
-### `goalias list`
-
-Lists all import aliases and their locations.
+### Examples
 
 ```bash
-goalias list --package <importPath> [patterns...]
-```
+# Standardize across the whole module
+goalias set -p github.com/pkg/errors -a pkgerrors
 
-**Required Flags:**
+# Only in some packages
+goalias set -p github.com/stretchr/testify/assert -a tassert ./internal/... ./cmd/...
 
-- `--package`, `-p`: Full import path to search for
-
-**Optional Arguments:**
-
-- `patterns`: Go package patterns (defaults to `./...`)
-
-**Examples:**
-
-```bash
-# List all usages in module
-goalias list -p github.com/gin-gonic/gin
-
-# List usages in specific directories
-goalias list -p github.com/stretchr/testify/assert ./tests/...
+# Audit one directory tree
+goalias list -p github.com/gin-gonic/gin ./api/...
 ```
 
 ## How It Works
 
-1. **Package Discovery**: Uses `go list` to find Go packages matching your patterns
-2. **AST Parsing**: Parses Go source files to locate import declarations
-3. **Smart Filtering**: Automatically skips generated files (containing `Code generated ... DO NOT EDIT`)
-4. **LSP Integration**: Uses persistent `gopls` connections for accurate code analysis and refactoring
-5. **Consistent Updates**: Applies import alias changes atomically across all matching files
+1. **Discover packages** — runs `go list -json` with your patterns and collects each package's Go files
+2. **Parse imports** — parses each file's AST to find the import spec for the path, skipping generated files
+3. **Rename via LSP** — opens one `gopls` session and issues a `textDocument/rename` on each import that doesn't already use the target alias
+4. **Apply edits** — writes the returned workspace edits to disk, or prints them as a diff with `--preview`
 
-## Performance
-
-goalias is designed for speed and efficiency:
-
-- **Persistent LSP Connections**: Reuses `gopls` sessions instead of spawning new processes
-- **Batch Operations**: Processes multiple files in a single LSP session
-- **Smart Caching**: Leverages `gopls` internal caching for faster analysis
-
-## Requirements
-
-- Go 1.22 or later
-- `gopls` (Go Language Server)
-- Git (for repository operations)
+Only non-test Go files (`GoFiles` from `go list`) are scanned; `_test.go` files are not changed.
 
 ## Development
-
-### Building from Source
 
 ```bash
 git clone https://github.com/jackchuka/goalias.git
 cd goalias
 go build -o goalias ./cmd/goalias
-```
-
-### Running Tests
-
-```bash
-# Run all tests
 go test ./...
-
-# Run tests with verbose output
-go test -v ./...
-
-# Run tests with coverage
-go test -cover ./...
 ```
+
+The demo GIF is rendered with [VHS](https://github.com/charmbracelet/vhs): `vhs assets/demo.tape`.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
-
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Run tests (`go test ./...`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
-### Code Style
-
-- Follow standard Go formatting (`golangci-lint`)
-- Add tests for new functionality
-- Update documentation as needed
-- Follow existing code patterns and conventions
+Contributions are welcome. Please open an issue for bugs or feature ideas, and include your Go version, OS and a minimal example when reporting a bug. Pull requests should include tests and pass `golangci-lint`.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Built with [Cobra](https://github.com/spf13/cobra) for CLI functionality
-- Uses [gopls](https://pkg.go.dev/golang.org/x/tools/gopls) for Go language server capabilities
-- Inspired by the need for consistent import management in large Go codebases
-
-## Support
-
-If you encounter any issues or have questions:
-
-1. Check the existing [issues](https://github.com/jackchuka/goalias/issues)
-2. Create a new issue with detailed information
-3. Include your Go version, OS, and example code when reporting bugs
+[MIT](LICENSE)
