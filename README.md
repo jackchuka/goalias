@@ -56,7 +56,7 @@ Download a prebuilt binary for Linux, macOS or Windows from the [releases page](
 go install golang.org/x/tools/gopls@latest
 ```
 
-`goalias list` only needs the `go` command. Building goalias from source requires Go 1.26 or later.
+`goalias list` only needs the `go` command. Building goalias from source requires Go 1.27 or later.
 
 ## Quick Start
 
